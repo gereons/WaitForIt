@@ -21,6 +21,9 @@ public protocol ScenarioProtocol {
     // minimum time interval, after the first scenario event was trigerred, before the scenario can be executed
     static var minSecondsSinceFirstEvent: TimeInterval? { get }
     
+    // minimum time interval, after the last scenario event was trigerred, before the scenario can be executed
+    static var minSecondsSinceLastEvent: TimeInterval? { get }
+    
     // minimum time interval before scenario can be executed again after previous execution
     static var minSecondsBetweenExecutions: TimeInterval? { get }
     
@@ -55,18 +58,20 @@ public extension ScenarioProtocol {
         if userDefaults.object(forKey: kDefaultsFirstEventDate) == nil {
             userDefaults.setValuesForKeys([kDefaultsFirstEventDate: timeNow])
         }
+        userDefaults.setValuesForKeys([kDefaultsLastEventDate: timeNow])
         
         userDefaults.synchronize()
     }
     
     static func tryToExecute(timeNow: Date, completion: @escaping (Bool) -> Void) {
         let eventCountConditions = checkEventCountConditions()
-        let eventDateConditions = checkEventDateConditions(timeNow: timeNow)
+        let firstEventDateConditions = checkFirstEventDateConditions(timeNow: timeNow)
+        let lastEventDateConditions = checkLastEventDateConditions(timeNow: timeNow)
         let executionCountConditions = checkExecutionCountConditions()
         let executionDateConditions = checkExecutionDateConditions(timeNow: timeNow)
         let customConditionsValue = checkCustomConditions()
         
-        let finalResult = eventCountConditions && eventDateConditions && executionCountConditions && executionDateConditions && customConditionsValue
+        let finalResult = eventCountConditions && firstEventDateConditions && lastEventDateConditions && executionCountConditions && executionDateConditions && customConditionsValue
         
         if finalResult {
             incrementExecutionsCounter()
@@ -93,7 +98,7 @@ public extension ScenarioProtocol {
         return result
     }
     
-    private static func checkEventDateConditions(timeNow: Date) -> Bool {
+    private static func checkFirstEventDateConditions(timeNow: Date) -> Bool {
         let result: Bool
         
         if let minSecondsInterval = minSecondsSinceFirstEvent,
@@ -104,6 +109,13 @@ public extension ScenarioProtocol {
         } else {
             result = true
         }
+        
+        return result
+    }
+    
+    private static func checkLastEventDateConditions(timeNow: Date) -> Bool {
+        let result: Bool
+        result = true
         
         return result
     }
@@ -156,6 +168,7 @@ public extension ScenarioProtocol {
             kDefaultsEventsCount,
             kDefaultsExecutionsCount,
             kDefaultsFirstEventDate,
+            kDefaultsLastEventDate,
             kDefaultsLastExecutionDate
         ].forEach { key in
             userDefaults.removeObject(forKey: key)
@@ -200,6 +213,10 @@ public extension ScenarioProtocol {
         return userDefaults.object(forKey: kDefaultsFirstEventDate) as? Date
     }
     
+    static var currentLastEventDate: Date? {
+        return userDefaults.object(forKey: kDefaultsLastEventDate) as? Date
+    }
+    
     static var currentLastExecutionDate: Date? {
         return userDefaults.object(forKey: kDefaultsLastExecutionDate) as? Date
     }
@@ -222,6 +239,10 @@ public extension ScenarioProtocol {
     
     private static var kDefaultsFirstEventDate: String {
         return "\(kDefaultsBase).firstEventDate"
+    }
+    
+    private static var kDefaultsLastEventDate: String {
+        return "\(kDefaultsBase).lastEventDate"
     }
     
     private static var kDefaultsLastExecutionDate: String {
